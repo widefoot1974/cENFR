@@ -14,9 +14,10 @@ import (
 var NATS_URL = "localhost:4222"
 
 type NatsMsg struct {
-	MsgSeq   int
-	Contents []byte
-	Time     time.Time
+	MsgSeqNum     int
+	ReturnSubject string
+	Time          time.Time
+	Contents      []byte
 }
 
 func set_log() {
@@ -51,9 +52,13 @@ func main() {
 
 	// eif 메시지 수신
 	eif_subject := "elf.subject"
+	return_subject := "elf1.subject"
 	for i := 0; i < count; i++ {
 
-		natsMsg := NatsMsg{MsgSeq: i, Contents: []byte(eif_subject), Time: time.Now()}
+		natsMsg := NatsMsg{MsgSeqNum: i,
+			ReturnSubject: return_subject,
+			Time:          time.Now(),
+			Contents:      []byte(eif_subject)}
 		jsonData, _ := json.Marshal(natsMsg)
 
 		err := nc.Publish(eif_subject, []byte(jsonData))
@@ -61,7 +66,7 @@ func main() {
 			log.Printf("nc.Publish(%v) fail: %v\n", eif_subject, err)
 			return
 		}
-		log.Printf("MsgSeq(%v), time(%v) Sended.\n", natsMsg.MsgSeq, natsMsg.Time)
+		log.Printf("MsgSeq(%v), time(%v) Sended.\n", natsMsg.MsgSeqNum, natsMsg.Time)
 
 		time.Sleep(1 * time.Second)
 	}
