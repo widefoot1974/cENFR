@@ -34,6 +34,7 @@ func main() {
 	}
 	defer nc.Close()
 
+	// 메시지를 저장하기 위한 MAP 구조체
 	msgStore := NewMsgStore()
 
 	// eif 메시지 수신
