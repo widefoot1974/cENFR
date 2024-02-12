@@ -31,7 +31,7 @@ func send_msg(nc *nats.Conn, tps int, count int) {
 		natsMsg := shared.NatsMsg{
 			Subject:       shared.IOS_subject,
 			ReturnSubject: shared.Eif_return_subject,
-			MsgSeqNum:     i,
+			MsgSeqNum:     fmt.Sprintf("%d", i),
 			SendTime:      time.Now(),
 			Contents:      []byte(shared.IOS_subject)}
 

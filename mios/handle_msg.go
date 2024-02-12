@@ -52,11 +52,15 @@ func handle_eif_msg(nc *nats.Conn, eifCh <-chan *nats.Msg, msgStore *MsgStore) {
 		recvMsg, result := check_eif_msg(msg)
 
 		if result {
+
+			messageId := fmt.Sprintf("%d", time.Now().UnixNano())
+			log.Printf("messageId = %#v\n", messageId)
+
 			// Send To AAA
 			aaaSendmsg := shared.NatsMsg{
 				Subject:       shared.AAA_subject,
 				ReturnSubject: shared.IOS_return_subject,
-				MsgSeqNum:     recvMsg.MsgSeqNum,
+				MsgSeqNum:     messageId,
 				SendTime:      time.Now(),
 				Contents:      []byte(shared.IOS_return_subject)}
 
@@ -70,15 +74,16 @@ func handle_eif_msg(nc *nats.Conn, eifCh <-chan *nats.Msg, msgStore *MsgStore) {
 				return
 			}
 
-			messageId := fmt.Sprintf("%d", time.Now().UnixNano())
-			log.Printf("messageId = %#v\n", messageId)
-
 			ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 			msgStore.AddMsgStore(messageId, recvMsg, aaaSendmsg, cancel)
 
 			go func(ctx context.Context, messageId string) {
 				<-ctx.Done()
+				log.Printf("messageId(%v) ctx.Done()\n", messageId)
 				msgStore.RemoveMsgStore(messageId)
+				if ctx.Err() == context.DeadlineExceeded {
+					log.Printf("Timeout occurred for message: %s\n", messageId)
+				}
 			}(ctx, messageId)
 
 		} else {
@@ -94,6 +99,19 @@ func handle_aaa_msg(nc *nats.Conn, aaaCh <-chan *nats.Msg, msgStore *MsgStore) {
 
 		// Check AAA Message
 		recvMsg, result := check_aaa_msg(msg)
+
+		messageId := recvMsg.MsgSeqNum
+		log.Printf("messageId = %v\n", messageId)
+
+		cancelFunc, ok := msgStore.GetCancelFunc(messageId)
+		if ok {
+			log.Printf("messageId(%v) is exist.\n", messageId)
+			cancelFunc()
+			// msgStore.RemoveMsgStore(messageId)
+		} else {
+			log.Printf("messageId(%v) is not exist.\n", messageId)
+			return
+		}
 
 		if result {
 			// Send To EIF

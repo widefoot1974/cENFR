@@ -4,8 +4,8 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
+	"time"
 
 	"enfr/shared"
 
@@ -65,22 +65,18 @@ func main() {
 	}
 
 	// Handle terminate signal gracefully
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, os.Interrupt)
-	signal.Notify(signalCh, syscall.SIGTERM)
+	waitForSignal()
 
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-
-	go func() {
-		signal := <-signalCh
-		log.Printf("signal(%v) received.\n", signal)
-		wg.Done()
-	}()
-
-	wg.Wait()
-
+	log.Printf("len(msgStore.canFunc) = %v\n", len(msgStore.canFunc))
 	log.Println("############################################################")
 	log.Printf(" [%v] Ended.\n", proc_name)
 	log.Println("############################################################")
+}
+
+func waitForSignal() {
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
+	<-signalCh
+	log.Println("\nReceived termination signal. Exiting...")
+	time.Sleep(time.Second) // Give a little time to gracefully shutdown
 }

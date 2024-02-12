@@ -19,35 +19,35 @@ func set_log() {
 	log.SetFlags(log.Lmicroseconds | log.Lshortfile)
 }
 
-func send_msg(nc *nats.Conn, tps int, count int) {
+// func send_msg(nc *nats.Conn, tps int, count int) {
 
-	log.Printf("tps = %v, count = %v\n", tps, count)
+// 	log.Printf("tps = %v, count = %v\n", tps, count)
 
-	// eif 메시지 수신
+// 	// eif 메시지 수신
 
-	for i := 0; i < count; i++ {
+// 	for i := 0; i < count; i++ {
 
-		natsMsg := shared.NatsMsg{
-			Subject:       shared.IOS_subject,
-			ReturnSubject: "",
-			MsgSeqNum:     i,
-			SendTime:      time.Now(),
-			Contents:      []byte(shared.IOS_subject)}
+// 		natsMsg := shared.NatsMsg{
+// 			Subject:       shared.IOS_subject,
+// 			ReturnSubject: "",
+// 			MsgSeqNum:     i,
+// 			SendTime:      time.Now(),
+// 			Contents:      []byte(shared.IOS_subject)}
 
-		jsonData, _ := json.Marshal(natsMsg)
+// 		jsonData, _ := json.Marshal(natsMsg)
 
-		err := nc.Publish(shared.IOS_subject, []byte(jsonData))
-		if err != nil {
-			log.Printf("nc.Publish(%v) fail: %v\n", shared.IOS_subject, err)
-			return
-		}
-		log.Printf("MsgSeq(%v), time(%v) Sended.\n", natsMsg.MsgSeqNum, natsMsg.SendTime)
+// 		err := nc.Publish(shared.IOS_subject, []byte(jsonData))
+// 		if err != nil {
+// 			log.Printf("nc.Publish(%v) fail: %v\n", shared.IOS_subject, err)
+// 			return
+// 		}
+// 		log.Printf("MsgSeq(%v), time(%v) Sended.\n", natsMsg.MsgSeqNum, natsMsg.SendTime)
 
-		time.Sleep(time.Duration(tps) * time.Millisecond)
-	}
+// 		time.Sleep(time.Duration(tps) * time.Millisecond)
+// 	}
 
-	log.Printf("send_msg() Ended.")
-}
+// 	log.Printf("send_msg() Ended.")
+// }
 
 func handle_recv_msg(nc *nats.Conn, msgCh <-chan *nats.Msg) {
 	log.Printf("handle_recv_msg() started.")
