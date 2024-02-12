@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"enfr/shared"
+	"fmt"
 	"log"
 	"time"
 
@@ -12,46 +14,49 @@ import (
 const MSG_CONT int = 1
 const MSG_ERR int = -1
 
-func check_eif_msg(msg *nats.Msg) (int, int) {
+func check_eif_msg(msg *nats.Msg) (shared.NatsMsg, bool) {
 	var eifRecvMsg shared.NatsMsg
 	err := json.Unmarshal(msg.Data, &eifRecvMsg)
 	if err != nil {
 		log.Printf("json.Unmarshal() fail: %v\n", err)
-		return MSG_ERR, 0
+		return eifRecvMsg, false
 	}
 
 	// Do Task
 
-	return MSG_CONT, eifRecvMsg.MsgSeqNum
+	// 메시지 저장
+
+	return eifRecvMsg, true
 }
 
-func check_aaa_msg(msg *nats.Msg) (int, int) {
+func check_aaa_msg(msg *nats.Msg) (shared.NatsMsg, bool) {
 	var aaaRecvMsg shared.NatsMsg
 	err := json.Unmarshal(msg.Data, &aaaRecvMsg)
 	if err != nil {
 		log.Printf("json.Unmarshal() fail: %v\n", err)
-		return MSG_ERR, 0
+		return aaaRecvMsg, false
 	}
 
 	// Do Task
 
-	return MSG_CONT, aaaRecvMsg.MsgSeqNum
+	return aaaRecvMsg, true
 }
 
-func handle_eif_msg(nc *nats.Conn, eifCh <-chan *nats.Msg) {
+func handle_eif_msg(nc *nats.Conn, eifCh <-chan *nats.Msg, msgStore *MsgStore) {
+
 	for msg := range eifCh {
 
 		log.Printf("Received message from eif: %s\n", msg.Data)
 
 		// Check EIF Message
-		result, msgSeqNum := check_eif_msg(msg)
+		recvMsg, result := check_eif_msg(msg)
 
-		if result == MSG_CONT {
+		if result {
 			// Send To AAA
 			aaaSendmsg := shared.NatsMsg{
 				Subject:       shared.AAA_subject,
 				ReturnSubject: shared.IOS_return_subject,
-				MsgSeqNum:     msgSeqNum,
+				MsgSeqNum:     recvMsg.MsgSeqNum,
 				SendTime:      time.Now(),
 				Contents:      []byte(shared.IOS_return_subject)}
 
@@ -65,26 +70,37 @@ func handle_eif_msg(nc *nats.Conn, eifCh <-chan *nats.Msg) {
 				return
 			}
 
+			messageId := fmt.Sprintf("%d", time.Now().UnixNano())
+			log.Printf("messageId = %#v\n", messageId)
+
+			ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
+			msgStore.AddMsgStore(messageId, recvMsg, aaaSendmsg, cancel)
+
+			go func(ctx context.Context, messageId string) {
+				<-ctx.Done()
+				msgStore.RemoveMsgStore(messageId)
+			}(ctx, messageId)
+
 		} else {
 			// Return To EIF
 		}
 	}
 }
 
-func handle_aaa_msg(nc *nats.Conn, aaaCh <-chan *nats.Msg) {
+func handle_aaa_msg(nc *nats.Conn, aaaCh <-chan *nats.Msg, msgStore *MsgStore) {
 	for msg := range aaaCh {
 
 		log.Printf("Received message from aaa: %s\n", msg.Data)
 
 		// Check AAA Message
-		result, msgSeqNum := check_aaa_msg(msg)
+		recvMsg, result := check_aaa_msg(msg)
 
-		if result == MSG_CONT {
+		if result {
 			// Send To EIF
 			eifSendmsg := shared.NatsMsg{
 				Subject:       shared.Eif_return_subject,
 				ReturnSubject: "",
-				MsgSeqNum:     msgSeqNum,
+				MsgSeqNum:     recvMsg.MsgSeqNum,
 				SendTime:      time.Now(),
 				Contents:      []byte(shared.Eif_return_subject)}
 
