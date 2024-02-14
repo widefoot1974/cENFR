@@ -76,7 +76,7 @@ func main() {
 
 func waitForSignal() {
 	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
 	<-signalCh
 	log.Println("\nReceived termination signal. Exiting...")
 	time.Sleep(time.Second) // Give a little time to gracefully shutdown
