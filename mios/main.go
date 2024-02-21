@@ -19,6 +19,7 @@ func set_log() {
 
 func main() {
 
+	// 로그 초기화
 	set_log()
 
 	proc_name := os.Args[0]
@@ -37,33 +38,11 @@ func main() {
 	// 메시지를 저장하기 위한 MAP 구조체
 	msgStore := NewMsgStore()
 
-	// eif 메시지 수신
-	eifCh := make(chan *nats.Msg)
-	subEIF, err := nc.Subscribe(shared.IOS_subject, func(msg *nats.Msg) {
-		eifCh <- msg
-	})
-	if err != nil {
-		log.Printf("nc.Subscribe(%v) fail: %v\n", shared.Eif_subject, err)
-	}
-	defer subEIF.Unsubscribe()
-
-	for i := 0; i < shared.EifCh_thread_cnt; i++ {
-		go handle_eif_msg(nc, eifCh, msgStore)
-	}
+	// eif 메시지 수신/처리
+	recv_eif_msg(nc, msgStore)
 
 	// aaa 메세지 수신
-	aaaCh := make(chan *nats.Msg)
-	subAAA, err := nc.Subscribe(shared.IOS_return_subject, func(msg *nats.Msg) {
-		aaaCh <- msg
-	})
-	if err != nil {
-		log.Printf("nc.Subscribe(%v) fail: %v\n", shared.IOS_return_subject, err)
-	}
-	defer subAAA.Unsubscribe()
-
-	for i := 0; i < shared.AAACh_thread_cnt; i++ {
-		go handle_aaa_msg(nc, aaaCh, msgStore)
-	}
+	recv_aaa_msg(nc, msgStore)
 
 	// Handle terminate signal gracefully
 	waitForSignal()
