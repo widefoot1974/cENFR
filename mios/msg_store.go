@@ -22,7 +22,7 @@ func NewMsgStore() *MsgStore {
 	}
 }
 
-func (ms *MsgStore) AddMsgStore(
+func (ms *MsgStore) Save(
 	messageId int,
 	recvMsg m.NatsMsg,
 	sendMsg m.NatsMsg,
@@ -36,7 +36,7 @@ func (ms *MsgStore) AddMsgStore(
 	ms.sendMsg[messageId] = sendMsg
 }
 
-func (ms *MsgStore) RemoveMsgStore(messageId int) {
+func (ms *MsgStore) Delete(messageId int) {
 	ms.mutex.Lock()
 	defer ms.mutex.Unlock()
 	delete(ms.canFunc, messageId)
@@ -50,5 +50,25 @@ func (ms *MsgStore) GetCancelFunc(messageId int) (context.CancelFunc, bool) {
 		return cancelFunc, true
 	} else {
 		return nil, false
+	}
+}
+
+func (ms *MsgStore) GetRecvMsg(messageId int) (m.NatsMsg, bool) {
+	var emptyMsg m.NatsMsg
+	recvMsg, found := ms.recvMsg[messageId]
+	if found {
+		return recvMsg, true
+	} else {
+		return emptyMsg, false
+	}
+}
+
+func (ms *MsgStore) GetSendMsg(messageId int) (m.NatsMsg, bool) {
+	var emptyMsg m.NatsMsg
+	sendMsg, found := ms.recvMsg[messageId]
+	if found {
+		return sendMsg, true
+	} else {
+		return emptyMsg, false
 	}
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-func recv_aaa_msg(nc *nats.Conn, msgStore *MsgStore) {
+func handleAAAMessage(nc *nats.Conn, msgStore *MsgStore) {
 
 	aaaCh := make(chan *nats.Msg)
 	subAAA, err := nc.Subscribe(shared.IOS_return_subject, func(msg *nats.Msg) {
@@ -22,12 +22,12 @@ func recv_aaa_msg(nc *nats.Conn, msgStore *MsgStore) {
 	defer subAAA.Unsubscribe()
 
 	for i := 0; i < shared.AAACh_thread_cnt; i++ {
-		go handle_aaa_msg(nc, aaaCh, msgStore)
+		go processAAAMessage(nc, aaaCh, msgStore)
 	}
 
 }
 
-func handle_aaa_msg(nc *nats.Conn, aaaCh <-chan *nats.Msg, msgStore *MsgStore) {
+func processAAAMessage(nc *nats.Conn, aaaCh <-chan *nats.Msg, msgStore *MsgStore) {
 	for msg := range aaaCh {
 
 		log.Printf("Received message from aaa: %s\n", msg.Data)

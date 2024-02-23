@@ -12,45 +12,56 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-// 로그 설정
-func set_log() {
+func init() {
+	SetLog()
+}
+
+func SetLog() {
 	log.SetFlags(log.Lmicroseconds | log.Lshortfile)
 }
 
 func main() {
 
-	// 로그 초기화
-	set_log()
-
-	proc_name := os.Args[0]
-	log.Println("############################################################")
-	log.Printf(" [%v] Started.\n", proc_name)
-	log.Println("############################################################")
+	logStartup(os.Args[0])
 
 	// nats-server 연동
-	nc, err := nats.Connect(shared.NATS_URL)
-	if err != nil {
-		log.Printf("nats.Connect(%v) fail: %v\n", shared.NATS_URL, err)
-		return
-	}
+	nc := connectToNATS(shared.NATS_URL)
 	defer nc.Close()
 
 	// 메시지를 저장하기 위한 MAP 구조체
 	msgStore := NewMsgStore()
 
 	// eif 메시지 수신/처리
-	recv_eif_msg(nc, msgStore)
+	handleEIFMessage(nc, msgStore)
 
 	// aaa 메세지 수신
-	recv_aaa_msg(nc, msgStore)
+	handleAAAMessge(nc, msgStore)
 
 	// Handle terminate signal gracefully
 	waitForSignal()
 
-	log.Printf("len(msgStore.canFunc) = %v\n", len(msgStore.canFunc))
+	logShutdown(os.Args[0], len(msgStore.canFunc))
+}
+
+func logStartup(procName string) {
 	log.Println("############################################################")
-	log.Printf(" [%v] Ended.\n", proc_name)
+	log.Printf(" [%v] Started.\n", procName)
 	log.Println("############################################################")
+}
+
+func logShutdown(procName string, storeSize int) {
+	log.Printf("len(msgStore.canFunc) = %v\n", storeSize)
+	log.Println("############################################################")
+	log.Printf(" [%v] Ended.\n", procName)
+	log.Println("############################################################")
+}
+
+func connectToNATS(url string) *nats.Conn {
+	nc, err := nats.Connect(url)
+	if err != nil {
+		log.Fatalf("Failed to connect to NATS at %s: %v", url, err)
+	}
+	return nc
 }
 
 func waitForSignal() {

@@ -12,7 +12,7 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-func recv_eif_msg(nc *nats.Conn, msgStore *MsgStore) {
+func handleEIFMessage(nc *nats.Conn, msgStore *MsgStore) {
 
 	eifCh := make(chan *nats.Msg)
 	msgId := NewMsgId()
@@ -26,13 +26,13 @@ func recv_eif_msg(nc *nats.Conn, msgStore *MsgStore) {
 	defer subEIF.Unsubscribe()
 
 	for i := 0; i < shared.EifCh_thread_cnt; i++ {
-		go handle_eif_msg(nc, eifCh, msgStore, msgId)
+		go processEIFMessage(nc, eifCh, msgStore, msgId)
 	}
 
 	fmt.Printf("")
 }
 
-func handle_eif_msg(nc *nats.Conn, eifCh <-chan *nats.Msg, msgStore *MsgStore, msgId *MsgId) {
+func processEIFMessage(nc *nats.Conn, eifCh <-chan *nats.Msg, msgStore *MsgStore, msgId *MsgId) {
 
 	for msg := range eifCh {
 
@@ -65,12 +65,12 @@ func handle_eif_msg(nc *nats.Conn, eifCh <-chan *nats.Msg, msgStore *MsgStore, m
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
-			msgStore.AddMsgStore(messageId, recvMsg, aaaSendmsg, cancel)
+			msgStore.Save(messageId, recvMsg, aaaSendmsg, cancel)
 
 			go func(ctx context.Context, messageId int) {
 				<-ctx.Done()
 				log.Printf("messageId(%v) ctx.Done()\n", messageId)
-				msgStore.RemoveMsgStore(messageId)
+				msgStore.Delete(messageId)
 				if ctx.Err() == context.DeadlineExceeded {
 					log.Printf("Timeout occurred for message: %v\n", messageId)
 				}
